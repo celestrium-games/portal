@@ -459,11 +459,6 @@
     #send:active:not(:disabled) { transform: scale(.94); }
     #send:disabled { background: var(--border); color: var(--text-faint); cursor: not-allowed; transform: none; }
  
-    .input-hint {
-      width: min(var(--col), 100%); margin: 6px auto 0;
-      font-size: 0.7rem; color: var(--text-faint); text-align: center;
-    }
- 
     /* ── Toast ───────────────────────────────────────── */
     #toast {
       position: fixed; bottom: 80px; left: 50%;
@@ -497,6 +492,14 @@
       #chat { padding: 0 12px 12px; }
       .starter-grid { grid-template-columns: 1fr; }
       .tb-pill { display: none; }
+    }
+    .disclaimer-text {
+      width: min(var(--col), 100%);
+      margin: 10px auto 0;
+      font-size: 0.7rem;
+      color: var(--text-faint);
+      text-align: center;
+      line-height: 1.4;
     }
   </style>
 </head>
@@ -611,17 +614,15 @@
   <!-- Input -->
   <div id="input-area">
     <div id="input-wrap">
-      <textarea id="input" rows="1" placeholder="Message Celestrium AI…" autocomplete="off" disabled></textarea>
+      <textarea id="input" rows="1" placeholder="Message CelestriumAI…" autocomplete="off" disabled></textarea>
       <span id="word-count"></span>
       <button id="send" disabled title="Send (Enter)">
         <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
       </button>
     </div>
-    <div class="input-hint">Enter to send &nbsp;·&nbsp; Shift+Enter for new line</div>
+    <div class="disclaimer-text">Celestrium's chatbot is AI and can make mistakes, so double-check it!</div>
   </div>
- 
 </div><!-- /#main -->
- 
 <div id="toast"></div>
  
 <script>
