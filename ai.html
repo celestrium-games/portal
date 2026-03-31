@@ -552,470 +552,523 @@
 <script>
 (function () {
 
-  /* ─── Constants ────────────────────────────────────── */
-  const CHATS_KEY   = 'celestrium-chats';
-  const ACTIVE_KEY  = 'celestrium-active-chat';
-  const RATE_KEY    = 'celestrium-msg-limits';
-  const MAX_WORDS   = 2000;
-  const MAX_MSGS    = 100;
-  const RATE_WINDOW = 60 * 60 * 1000; // 1 hour
+/* ─── Constants ────────────────────────────────────── */
+const CHATS_KEY   = 'celestrium-chats';
+const ACTIVE_KEY  = 'celestrium-active-chat';
+const RATE_KEY    = 'celestrium-msg-limits';
+const MAX_WORDS   = 2000;
+const MAX_MSGS    = 100;
+const RATE_WINDOW = 60 * 60 * 1000; // 1 hour
 
-  const INIT_PROMPT =
-    'IMPORTANT FORMATTING RULES — follow these for every single response in this conversation:\n\n' +
-    '1. Never use markdown syntax of any kind. This means no hashtags for headings (# ## ###), ' +
-    'no asterisks for bold or bullets (* ** ***), no underscores for italics, no dashes as ' +
-    'bullet points (- or --), no horizontal rules (--- or ___), no backtick code fences, ' +
-    'no LaTeX or math notation (\\( \\) \\[ \\]), and no angle brackets.\n\n' +
-    '2. To create a section heading, just write the heading text on its own line followed by a colon.\n\n' +
-    '3. For lists, write each item as a plain sentence starting on a new line with no prefix symbol.\n\n' +
-    '4. For code or formulas, write them inline in plain text unless showing a multi-line code example.\n\n' +
-    '5. Keep your tone casual, friendly, and conversational.\n\n' +
-    '6. Your name is \'Celestrium AI\'. Only mention it if explicitly asked.\n\n' +
-    'Acknowledge these rules with only the word: ready';
+const INIT_PROMPT =
+  'IMPORTANT FORMATTING RULES — follow these for every single response in this conversation:\n\n' +
+  '1. Never use markdown syntax of any kind. This means no hashtags for headings (# ## ###), ' +
+  'no asterisks for bold or bullets (* ** ***), no underscores for italics, no dashes as ' +
+  'bullet points (- or --), no horizontal rules (--- or ___), no backtick code fences, ' +
+  'no LaTeX or math notation (\\( \\) \\[ \\]), and no angle brackets.\n\n' +
+  '2. To create a section heading, just write the heading text on its own line followed by a colon.\n\n' +
+  '3. For lists, write each item as a plain sentence starting on a new line with no prefix symbol.\n\n' +
+  '4. For code or formulas, write them inline in plain text unless showing a multi-line code example.\n\n' +
+  '5. Keep your tone casual, friendly, and conversational.\n\n' +
+  '6. Your name is \'Celestrium AI\'. Only mention it if explicitly asked.\n\n' +
+  'Acknowledge these rules with only the word: ready';
 
-  /* ─── SVGs ─────────────────────────────────────────── */
-  const BOT_LOGO = `<svg width="13" height="13" viewBox="0 0 28 28" fill="none">
-    <path d="M20.5 8A9 9 0 1 0 20.5 20" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
-    <circle cx="20.5" cy="20" r="2" fill="#fff"/></svg>`;
+/* ─── SVGs ─────────────────────────────────────────── */
+const BOT_LOGO = `<svg width="13" height="13" viewBox="0 0 28 28" fill="none">
+  <path d="M20.5 8A9 9 0 1 0 20.5 20" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="20.5" cy="20" r="2" fill="#fff"/></svg>`;
 
-  const USER_ICON = `<svg viewBox="0 0 24 24" width="13" height="13">
-    <path fill="#888" d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2
-    9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>`;
+const USER_ICON = `<svg viewBox="0 0 24 24" width="13" height="13">
+  <path fill="#888" d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2
+  9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>`;
 
-  const COPY_ICON = `<svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3
-    4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>`;
+const COPY_ICON = `<svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3
+  4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>`;
 
-  const REGEN_ICON = `<svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.96 7.96 0 0 0 12 4c-4.42
-    0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31
-    0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>`;
+const REGEN_ICON = `<svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.96 7.96 0 0 0 12 4c-4.42
+  0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31
+  0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>`;
 
-  const CHAT_ICON = `<svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14
-    c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>`;
+const CHAT_ICON = `<svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14
+  c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>`;
 
-  const TRASH_ICON = `<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9
-    2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`;
+const TRASH_ICON = `<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9
+  2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`;
 
-  /* ─── DOM refs ─────────────────────────────────────── */
-  const chatEl     = document.getElementById('chat');
-  const inputEl    = document.getElementById('input');
-  const sendBtn    = document.getElementById('send');
-  const welcomeEl  = document.getElementById('welcome');
-  const typingEl   = document.getElementById('typing-indicator');
-  const wcEl       = document.getElementById('word-count');
-  const chatListEl = document.getElementById('chat-list');
-  const sidebarEl  = document.getElementById('sidebar');
-  const toastEl    = document.getElementById('toast');
+/* ─── DOM refs ─────────────────────────────────────── */
+const chatEl     = document.getElementById('chat');
+const inputEl    = document.getElementById('input');
+const sendBtn    = document.getElementById('send');
+const welcomeEl  = document.getElementById('welcome');
+const typingEl   = document.getElementById('typing-indicator');
+const wcEl       = document.getElementById('word-count');
+const chatListEl = document.getElementById('chat-list');
+const sidebarEl  = document.getElementById('sidebar');
+const toastEl    = document.getElementById('toast');
 
-  /* ─── State ────────────────────────────────────────── */
-  let activeChat    = null;
-  const deletedIds  = new Set();
-  let _initSent     = false;
-  let _suppressUser = false;
-  let _suppressBot  = false;
+/* ─── State ────────────────────────────────────────── */
+let activeChat    = null;
+const deletedIds  = new Set();
+let _initSent     = false;
+let _suppressUser = false;
+let _suppressBot  = false;
 
-  /* ─── Storage ──────────────────────────────────────── */
-  const store = {
-    chats()       { try { return JSON.parse(localStorage.getItem(CHATS_KEY)) || []; } catch { return []; } },
-    saveChats(a)  { localStorage.setItem(CHATS_KEY, JSON.stringify(a)); },
-    activeId()    { return localStorage.getItem(ACTIVE_KEY) || null; },
-    setActive(id) { localStorage.setItem(ACTIVE_KEY, id); },
-    getChat(id)   { return this.chats().find(c => c.id === id) || null; },
-    saveChat(chat) {
-      const all = this.chats();
-      const i   = all.findIndex(c => c.id === chat.id);
-      if (i >= 0) all[i] = chat; else all.unshift(chat);
-      this.saveChats(all);
-    },
-    deleteChat(id) { this.saveChats(this.chats().filter(c => c.id !== id)); }
-  };
-
-  function newChat() {
-    return {
-      id:        'chat_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-      title:     'New conversation',
-      messages:  [],
-      createdAt: Date.now(),
-      updatedAt: Date.now()
-    };
-  }
-
-  /* ─── Rate limiting ────────────────────────────────── */
-  const rate = {
-    timestamps() {
-      try {
-        return (JSON.parse(localStorage.getItem(RATE_KEY)) || [])
-          .filter(t => Date.now() - t < RATE_WINDOW);
-      } catch { return []; }
-    },
-    canSend() { return this.timestamps().length < MAX_MSGS; },
-    record()  {
-      const ts = this.timestamps();
-      ts.push(Date.now());
-      localStorage.setItem(RATE_KEY, JSON.stringify(ts));
+/* ─── Storage ──────────────────────────────────────── */
+const store = {
+  chats()       { try { return JSON.parse(localStorage.getItem(CHATS_KEY)) || []; } catch { return []; } },
+  saveChats(a)  { localStorage.setItem(CHATS_KEY, JSON.stringify(a)); },
+  activeId()    { return localStorage.getItem(ACTIVE_KEY) || null; },
+  setActive(id) { localStorage.setItem(ACTIVE_KEY, id); },
+  getChat(id)   { return this.chats().find(c => c.id === id) || null; },
+  saveChat(chat) {
+    const all = this.chats();
+    const i   = all.findIndex(c => c.id === chat.id);
+    if (i >= 0) all[i] = chat; else all.unshift(chat);
+    this.saveChats(all);
+  },
+  deleteChat(id) {
+    const all = this.chats();
+    // Prevent deletion if it's the last chat
+    if (all.length <= 1) {
+      showToast("Cannot delete the last conversation.");
+      return false; 
     }
+    const filtered = all.filter(c => c.id !== id);
+    this.saveChats(filtered);
+    return true;
+  }
+};
+
+function newChat() {
+  return {
+    id:        'chat_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+    title:     'New conversation',
+    messages:  [],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
   };
+}
 
-  /* ─── Utilities ────────────────────────────────────── */
-  function escHtml(s) {
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+/* ─── Rate limiting ────────────────────────────────── */
+const rate = {
+  timestamps() {
+    try {
+      return (JSON.parse(localStorage.getItem(RATE_KEY)) || [])
+        .filter(t => Date.now() - t < RATE_WINDOW);
+    } catch { return []; }
+  },
+  canSend() { return this.timestamps().length < MAX_MSGS; },
+  record()  {
+    const ts = this.timestamps();
+    ts.push(Date.now());
+    localStorage.setItem(RATE_KEY, JSON.stringify(ts));
   }
-  function nowTime() {
-    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }
-  function countWords(s) { return s.trim().split(/\s+/).filter(Boolean).length; }
-  function isInitMsg(s)  { return s.startsWith('IMPORTANT FORMATTING RULES'); }
-  function relTime(ts) {
-    const d = Date.now() - ts;
-    if (d < 60000)     return 'just now';
-    if (d < 3600000)   return Math.floor(d / 60000) + 'm ago';
-    if (d < 86400000)  return Math.floor(d / 3600000) + 'h ago';
-    if (d < 604800000) return Math.floor(d / 86400000) + 'd ago';
-    return new Date(ts).toLocaleDateString([], { month: 'short', day: 'numeric' });
-  }
+};
 
-  let _toastTimer;
-  function showToast(msg) {
-    toastEl.textContent = msg;
-    toastEl.classList.add('show');
-    clearTimeout(_toastTimer);
-    _toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2200);
-  }
+/* ─── Utilities ────────────────────────────────────── */
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function nowTime() {
+  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+function countWords(s) { return s.trim().split(/\s+/).filter(Boolean).length; }
+function isInitMsg(s)  { return s && s.startsWith('IMPORTANT FORMATTING RULES'); }
+function relTime(ts) {
+  const d = Date.now() - ts;
+  if (d < 60000)     return 'just now';
+  if (d < 3600000)   return Math.floor(d / 60000) + 'm ago';
+  if (d < 86400000)  return Math.floor(d / 3600000) + 'h ago';
+  if (d < 604800000) return Math.floor(d / 86400000) + 'd ago';
+  return new Date(ts).toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
 
-  /* ─── Markdown cleaner ─────────────────────────────── */
-  function cleanMd(html) {
-    let t = html;
-    t = t.replace(/^#{1,3}\s+(.+)$/gm, '<span class="msg-section">$1</span>');
-    t = t.replace(/^-{3,}$/gm, '<hr>');
-    t = t.replace(/((?:^\*\s+.+$\n?)+)/gm, block => {
-      const items = block.trim().split('\n')
-        .map(l => `<li>${l.replace(/^\*\s+/, '')}</li>`).join('');
-      return `<ul>${items}</ul>`;
+let _toastTimer;
+function showToast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2200);
+}
+
+/* ─── Markdown cleaner ─────────────────────────────── */
+function cleanMd(html) {
+  let t = html;
+  t = t.replace(/^#{1,3}\s+(.+)$/gm, '<span class="msg-section">$1</span>');
+  t = t.replace(/^-{3,}$/gm, '<hr>');
+  t = t.replace(/((?:^\*\s+.+$\n?)+)/gm, block => {
+    const items = block.trim().split('\n')
+      .map(l => `<li>${l.replace(/^\*\s+/, '')}</li>`).join('');
+    return `<ul>${items}</ul>`;
+  });
+  t = t.replace(/^\*\s+/gm, '');
+  t = t.replace(/\\\((.+?)\\\)/g, '$1');
+  t = t.replace(/\\\[(.+?)\\\]/gs, '$1');
+  return t.split(/\n{2,}/).map(p => {
+    p = p.trim();
+    if (!p) return '';
+    if (/^<(ul|hr|pre|span)/.test(p)) return p;
+    return '<p>' + p.replace(/\n/g, '<br>') + '</p>';
+  }).join('\n');
+}
+
+/* ─── Input resize ─────────────────────────────────── */
+function resizeInput() {
+  inputEl.style.height = 'auto';
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 180) + 'px';
+  inputEl.style.overflowY = inputEl.scrollHeight > 180 ? 'auto' : 'hidden';
+}
+inputEl.addEventListener('input', resizeInput);
+
+/* ─── Word count display ────────────────────────────── */
+let _wcLast = '';
+setInterval(() => {
+  const val = inputEl.value;
+  if (val === _wcLast) return;
+  _wcLast = val;
+  if (!val.trim()) { wcEl.textContent = ''; wcEl.classList.remove('over'); return; }
+  const n    = countWords(val);
+  const over = n > MAX_WORDS;
+  wcEl.textContent = over ? `${n} / ${MAX_WORDS} words` : `${n} word${n === 1 ? '' : 's'}`;
+  wcEl.classList.toggle('over', over);
+}, 100);
+
+/* ─── Card builder ─────────────────────────────────── */
+function buildCard(role, html, time, withActions) {
+  const isBot = role === 'bot';
+  const card  = document.createElement('div');
+  card.className = 'msg-card';
+
+  const hdr = document.createElement('div');
+  hdr.className = 'msg-header';
+  hdr.innerHTML = `
+    <div class="msg-avatar">${isBot ? BOT_LOGO : USER_ICON}</div>
+    <span class="msg-name">${isBot ? 'Celestrium AI' : 'You'}</span>
+    <span class="msg-time">${time}</span>`;
+
+  const body = document.createElement('div');
+  body.className = 'msg-text';
+  body.innerHTML = isBot ? cleanMd(html) : html;
+
+  card.appendChild(hdr);
+  card.appendChild(body);
+
+  if (isBot && withActions) {
+    const acts = document.createElement('div');
+    acts.className = 'msg-actions';
+    acts.innerHTML = `
+      <button class="act-btn copy-btn">${COPY_ICON} Copy</button>
+      <button class="act-btn regen-btn">${REGEN_ICON} Regenerate</button>`;
+
+    // COPY LOGIC (Optional bonus fix if it wasn't working)
+    acts.querySelector('.copy-btn').addEventListener('click', () => {
+      navigator.clipboard.writeText(body.innerText).then(() => showToast('Copied to clipboard'));
     });
-    t = t.replace(/^\*\s+/gm, '');
-    t = t.replace(/\\\((.+?)\\\)/g, '$1');
-    t = t.replace(/\\\[(.+?)\\\]/gs, '$1');
-    return t.split(/\n{2,}/).map(p => {
-      p = p.trim();
-      if (!p) return '';
-      if (/^<(ul|hr|pre|span)/.test(p)) return p;
-      return '<p>' + p.replace(/\n/g, '<br>') + '</p>';
-    }).join('\n');
-  }
 
-  /* ─── Input resize ─────────────────────────────────── */
-  function resizeInput() {
-    inputEl.style.height = 'auto';
-    inputEl.style.height = Math.min(inputEl.scrollHeight, 180) + 'px';
-    inputEl.style.overflowY = inputEl.scrollHeight > 180 ? 'auto' : 'hidden';
-  }
-  inputEl.addEventListener('input', resizeInput);
+    // REGENERATE LOGIC
+    acts.querySelector('.regen-btn').addEventListener('click', (e) => {
+        if (sendBtn.disabled || !activeChat) return;
 
-  /* ─── Word count display ────────────────────────────── */
-  let _wcLast = '';
-  setInterval(() => {
-    const val = inputEl.value;
-    if (val === _wcLast) return;
-    _wcLast = val;
-    if (!val.trim()) { wcEl.textContent = ''; wcEl.classList.remove('over'); return; }
-    const n    = countWords(val);
-    const over = n > MAX_WORDS;
-    wcEl.textContent = over ? `${n} / ${MAX_WORDS} words` : `${n} word${n === 1 ? '' : 's'}`;
-    wcEl.classList.toggle('over', over);
-  }, 100);
+        // 1. Find the main message element in the DOM that contains the clicked button
+        const msgElement = e.target.closest('.message');
+        
+        // 2. Get all VISIBLE messages. This perfectly matches the activeChat.messages array 
+        // because it ignores the hidden, silent initialization prompts.
+        const visibleMessages = Array.from(chatEl.querySelectorAll('.message[data-visible="1"]'));
+        
+        // 3. Find the exact index of the bot message we want to regenerate
+        const botIndex = visibleMessages.indexOf(msgElement);
+        if (botIndex <= 0) return; // Safety check
 
-  /* ─── Card builder ─────────────────────────────────── */
-  function buildCard(role, html, time, withActions) {
-    const isBot = role === 'bot';
-    const card  = document.createElement('div');
-    card.className = 'msg-card';
+        // 4. The user's prompt is always the message immediately preceding the bot's response
+        const userIndex = botIndex - 1;
+        const targetUserText = activeChat.messages[userIndex].text;
 
-    const hdr = document.createElement('div');
-    hdr.className = 'msg-header';
-    hdr.innerHTML = `
-      <div class="msg-avatar">${isBot ? BOT_LOGO : USER_ICON}</div>
-      <span class="msg-name">${isBot ? 'Celestrium AI' : 'You'}</span>
-      <span class="msg-time">${time}</span>`;
+        // 5. Truncate the chat history: Keep everything BEFORE the user's prompt.
+        // This effectively deletes the old user prompt, the old bot response, and any newer messages.
+        activeChat.messages = activeChat.messages.slice(0, userIndex);
+        store.saveChat(activeChat);
 
-    const body = document.createElement('div');
-    body.className = 'msg-text';
-    body.innerHTML = isBot ? cleanMd(html) : html;
+        // 6. Redraw the chat to reflect the truncated history
+        restoreChat(activeChat);
 
-    card.appendChild(hdr);
-    card.appendChild(body);
-
-    if (isBot && withActions) {
-      const acts = document.createElement('div');
-      acts.className = 'msg-actions';
-      acts.innerHTML = `
-        <button class="act-btn copy-btn">${COPY_ICON} Copy</button>
-        <button class="act-btn regen-btn">${REGEN_ICON} Regenerate</button>`;
-
-      acts.querySelector('.copy-btn').addEventListener('click', () =>
-        navigator.clipboard.writeText(body.innerText).then(() => showToast('Copied to clipboard')));
-
-      acts.querySelector('.regen-btn').addEventListener('click', () => {
-        const users = [...chatEl.querySelectorAll('.user.message[data-visible="1"]')];
-        const last  = users[users.length - 1];
-        if (!last || sendBtn.disabled) return;
-        const txt = last.querySelector('.msg-text');
-        inputEl.value = txt ? txt.innerText.trim() : '';
+        // 7. Resend the targeted prompt
+        inputEl.value = targetUserText;
+        sendBtn.disabled = false;
         sendBtn.click();
-        inputEl.value = '';
-        resizeInput();
       });
 
-      card.appendChild(acts);
+    card.appendChild(acts);
+  }
+  return card;
+}
+
+/* ─── Sidebar list ─────────────────────────────────── */
+function renderList() {
+  const chats = store.chats();
+  chatListEl.innerHTML = '';
+
+  const canDelete = chats.length > 1;
+
+  chats.forEach(chat => {
+    const el = document.createElement('div');
+    el.className = `chat-item ${activeChat && activeChat.id === chat.id ? 'active' : ''}`;
+    el.innerHTML = `
+      <div class="chat-item-icon">${CHAT_ICON}</div>
+      <div class="chat-item-info">
+        <div class="chat-item-title">${escHtml(chat.title)}</div>
+        <div class="chat-item-meta">${relTime(chat.updatedAt)}</div>
+      </div>
+      <button class="chat-item-delete" title="Delete Chat">${TRASH_ICON}</button>
+    `;
+
+    // FIXED: Uses switchTo() to load the chat
+    el.onclick = () => switchTo(chat.id);
+
+    const delBtn = el.querySelector('.chat-item-delete');
+    
+    // Grey out the delete button if it's the last chat
+    if (!canDelete) {
+      delBtn.style.opacity = '0.3';
+      delBtn.style.cursor = 'not-allowed';
     }
-    return card;
-  }
 
-  /* ─── Sidebar list ─────────────────────────────────── */
-  function renderList() {
-    const chats = store.chats();
-    chatListEl.innerHTML = '';
-    if (!chats.length) {
-      chatListEl.innerHTML = `<div style="padding:16px 14px;font-size:0.77rem;color:var(--text-faint);text-align:center;line-height:1.5">No conversations yet.<br>Start one above.</div>`;
-      return;
-    }
-    chats.forEach(chat => {
-      const el = document.createElement('div');
-      el.className  = 'chat-item' + (chat.id === activeChat?.id ? ' active' : '');
-      el.dataset.id = chat.id;
-      el.innerHTML  = `
-        <div class="chat-item-icon">${CHAT_ICON}</div>
-        <div class="chat-item-info">
-          <div class="chat-item-title">${escHtml(chat.title)}</div>
-          <div class="chat-item-meta">${relTime(chat.updatedAt)}</div>
-        </div>
-        <button class="chat-item-delete" title="Delete">${TRASH_ICON}</button>`;
+    delBtn.onclick = (e) => {
+      e.stopPropagation();
+      
+      // Let store.deleteChat handle the validation and physical deletion
+      if (store.deleteChat(chat.id)) {
+        // If the deleted chat was currently active, switch to another one safely
+        if (activeChat && activeChat.id === chat.id) {
+          const remaining = store.chats();
+          switchTo(remaining[0].id);
+        } else {
+          // Otherwise just refresh the list
+          renderList();
+        }
+        showToast("Conversation deleted.");
+      }
+    };
 
-      el.querySelector('.chat-item-delete').addEventListener('click', e => {
-        e.stopPropagation();
-        deletedIds.add(chat.id);
-        store.deleteChat(chat.id);
-        if (activeChat?.id === chat.id) startNew();
-        else if (!store.chats().length) startNew();
-        else renderList();
-      });
-      el.addEventListener('click', () => switchTo(chat.id));
-      chatListEl.appendChild(el);
-    });
-  }
+    chatListEl.appendChild(el);
+  });
+}
 
-  /* ─── DOM chat management ──────────────────────────── */
-  function clearMessages() {
-    chatEl.querySelectorAll('.message').forEach(m => m.remove());
-    chatEl.appendChild(typingEl);
-  }
+/* ─── DOM chat management ──────────────────────────── */
+function clearMessages() {
+  chatEl.querySelectorAll('.message').forEach(m => m.remove());
+  chatEl.appendChild(typingEl);
+}
 
-  function restoreChat(chat) {
-    clearMessages();
-    if (!chat?.messages.length) { welcomeEl.style.display = ''; return; }
-    welcomeEl.style.display = 'none';
-    chat.messages.forEach(msg => {
-      const node = document.createElement('div');
-      node.className = 'message ' + msg.role;
-      node.dataset.enhanced = '1';
-      node.dataset.visible  = '1';
-      node.appendChild(buildCard(msg.role, msg.html, msg.time, false));
-      chatEl.insertBefore(node, typingEl);
-    });
-    chatEl.scrollTop = chatEl.scrollHeight;
-  }
+function restoreChat(chat) {
+  clearMessages();
+  if (!chat?.messages.length) { welcomeEl.style.display = ''; return; }
+  welcomeEl.style.display = 'none';
+  chat.messages.forEach(msg => {
+    const node = document.createElement('div');
+    node.className = 'message ' + msg.role;
+    node.dataset.enhanced = '1';
+    node.dataset.visible  = '1';
+    node.appendChild(buildCard(msg.role, msg.html, msg.time, msg.role === 'bot')); // Show actions only for bot
+    chatEl.insertBefore(node, typingEl);
+  });
+  chatEl.scrollTop = chatEl.scrollHeight;
+}
 
-  function switchTo(id) {
-    const chat = store.getChat(id);
-    if (!chat) return;
-    activeChat = chat;
-    store.setActive(id);
-    restoreChat(chat);
-    renderList();
-    _initSent = false;
-    if (!sendBtn.disabled) { _initSent = true; sendInit(); }
-  }
+function switchTo(id) {
+  const chat = store.getChat(id);
+  if (!chat) return;
+  activeChat = chat;
+  store.setActive(id);
+  restoreChat(chat);
+  renderList();
+  _initSent = false;
+  if (!sendBtn.disabled) { _initSent = true; sendInit(); }
+}
 
-  function startNew() {
+function startNew() {
+  activeChat = newChat();
+  store.saveChat(activeChat);
+  store.setActive(activeChat.id);
+  clearMessages();
+  welcomeEl.style.display = '';
+  renderList();
+  _initSent = false;
+  if (!sendBtn.disabled) { _initSent = true; sendInit(); }
+  showToast('New conversation started');
+}
+
+/* ─── Persist a message ────────────────────────────── */
+function persist(role, html, text, time) {
+  if (!activeChat || deletedIds.has(activeChat.id)) return;
+  activeChat.messages.push({ role, html, text, time });
+  activeChat.updatedAt = Date.now();
+  if (role === 'user' && activeChat.title === 'New conversation')
+    activeChat.title = text.slice(0, 48) + (text.length > 48 ? '…' : '');
+  store.saveChat(activeChat);
+  renderList();
+}
+
+/* ─── Silent init ──────────────────────────────────── */
+function sendInit() {
+  _suppressUser    = true;
+  _suppressBot     = true;
+  inputEl.disabled = false;
+  inputEl.value    = INIT_PROMPT;
+  sendBtn.disabled = false;
+  sendBtn.click();
+  inputEl.value    = '';
+  resizeInput();
+}
+
+// Poll until the obfuscated WS code enables the button, then boot
+const connWatch = setInterval(() => {
+  if (sendBtn.disabled || _initSent) return;
+  clearInterval(connWatch);
+  _initSent = true;
+  const saved = store.getChat(store.activeId());
+  if (saved) {
+    activeChat = saved;
+    restoreChat(saved);
+    store.setActive(saved.id);
+  } else {
     activeChat = newChat();
     store.saveChat(activeChat);
     store.setActive(activeChat.id);
-    clearMessages();
-    welcomeEl.style.display = '';
-    renderList();
-    _initSent = false;
-    if (!sendBtn.disabled) { _initSent = true; sendInit(); }
-    showToast('New conversation started');
   }
+  renderList();
+  sendInit();
+}, 150);
 
-  /* ─── Persist a message ────────────────────────────── */
-  function persist(role, html, text, time) {
-    if (!activeChat || deletedIds.has(activeChat.id)) return;
-    activeChat.messages.push({ role, html, text, time });
-    activeChat.updatedAt = Date.now();
-    if (role === 'user' && activeChat.title === 'New conversation')
-      activeChat.title = text.slice(0, 48) + (text.length > 48 ? '…' : '');
-    store.saveChat(activeChat);
-    renderList();
+/* ─── Welcome screen observer ──────────────────────── */
+new MutationObserver((_, obs) => {
+  if (chatEl.querySelector('.message[data-visible="1"]')) {
+    welcomeEl.style.display = 'none';
+    obs.disconnect();
   }
+}).observe(chatEl, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-visible'] });
 
-  /* ─── Silent init ──────────────────────────────────── */
-  function sendInit() {
-    _suppressUser    = true;
-    _suppressBot     = true;
-    inputEl.disabled = false;
-    inputEl.value    = INIT_PROMPT;
-    sendBtn.click();
-    inputEl.value    = '';
-    resizeInput();
-  }
+/* ─── Message observer ─────────────────────────────── */
+// Watches for raw .message nodes added by the obfuscated WS code,
+// wraps them in proper cards, and saves them.
+new MutationObserver(mutations => {
+  for (const mut of mutations) {
+    for (const node of mut.addedNodes) {
+      if (node.nodeType !== 1 || !node.classList.contains('message') || node.dataset.enhanced) continue;
+      node.dataset.enhanced = '1';
 
-  // Poll until the obfuscated WS code enables the button, then boot
-  const connWatch = setInterval(() => {
-    if (sendBtn.disabled || _initSent) return;
-    clearInterval(connWatch);
-    _initSent = true;
-    const saved = store.getChat(store.activeId());
-    if (saved) {
-      activeChat = saved;
-      restoreChat(saved);
-      store.setActive(saved.id);
-    } else {
-      activeChat = newChat();
-      store.saveChat(activeChat);
-      store.setActive(activeChat.id);
-    }
-    renderList();
-    sendInit();
-  }, 150);
+      const isBot  = node.classList.contains('bot');
+      const isUser = node.classList.contains('user');
+      if (!isBot && !isUser) continue;
 
-  /* ─── Welcome screen observer ──────────────────────── */
-  new MutationObserver((_, obs) => {
-    if (chatEl.querySelector('.message[data-visible="1"]')) {
-      welcomeEl.style.display = 'none';
-      obs.disconnect();
-    }
-  }).observe(chatEl, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-visible'] });
-
-  /* ─── Message observer ─────────────────────────────── */
-  // Watches for raw .message nodes added by the obfuscated WS code,
-  // wraps them in proper cards, and saves them.
-  new MutationObserver(mutations => {
-    for (const mut of mutations) {
-      for (const node of mut.addedNodes) {
-        if (node.nodeType !== 1 || !node.classList.contains('message') || node.dataset.enhanced) continue;
-        node.dataset.enhanced = '1';
-
-        const isBot  = node.classList.contains('bot');
-        const isUser = node.classList.contains('user');
-        if (!isBot && !isUser) continue;
-
-        // Swallow the silent init exchange
-        if (isUser && _suppressUser) {
-          _suppressUser = false;
+      // Swallow the silent init exchange
+      if (isUser && _suppressUser) {
+        _suppressUser = false;
+        node.style.display = 'none';
+        continue;
+      }
+      if (isBot && _suppressBot) {
+        node.style.display = 'none';
+        const hw = setInterval(() => {
+          if (sendBtn.disabled) return;
+          clearInterval(hw);
+          _suppressBot = false;
           node.style.display = 'none';
-          continue;
-        }
-        if (isBot && _suppressBot) {
-          node.style.display = 'none';
-          const hw = setInterval(() => {
-            if (sendBtn.disabled) return;
-            clearInterval(hw);
-            _suppressBot = false;
-            node.style.display = 'none';
-          }, 80);
-          continue;
-        }
+        }, 80);
+        continue;
+      }
 
-        node.dataset.visible = '1';
-        const rawHTML = node.innerHTML;
-        const time    = nowTime();
-        const card    = buildCard(isBot ? 'bot' : 'user', rawHTML, time, isBot);
-        const body    = card.querySelector('.msg-text');
+      node.dataset.visible = '1';
+      const rawHTML = node.innerHTML;
+      const time    = nowTime();
+      const card    = buildCard(isBot ? 'bot' : 'user', rawHTML, time, isBot);
+      const body    = card.querySelector('.msg-text');
 
-        // Patch innerHTML so streaming token updates flow into the card body
-        if (isBot) {
-          node._raw = rawHTML;
-          Object.defineProperty(node, 'innerHTML', {
-            set(v) { node._raw = v; if (body) body.innerHTML = cleanMd(v); },
-            get()  { return node._raw || ''; }
-          });
-        }
+      // Patch innerHTML so streaming token updates flow into the card body
+      if (isBot) {
+        node._raw = rawHTML;
+        Object.defineProperty(node, 'innerHTML', {
+          set(v) { node._raw = v; if (body) body.innerHTML = cleanMd(v); },
+          get()  { return node._raw || ''; }
+        });
+      }
 
-        node.innerHTML = '';
-        node.appendChild(card);
-        chatEl.appendChild(typingEl); // keep typing indicator at bottom
+      node.innerHTML = '';
+      node.appendChild(card);
+      chatEl.appendChild(typingEl); // keep typing indicator at bottom
 
-        if (isUser) {
-          persist('user', rawHTML, body?.innerText.trim() ?? '', time);
-        } else {
-          // Wait for streaming to finish (send button re-enables)
-          const sw = setInterval(() => {
-            if (sendBtn.disabled) return;
-            clearInterval(sw);
-            persist('bot', node._raw ?? rawHTML, body?.innerText.trim() ?? '', time);
-          }, 100);
-        }
+      if (isUser) {
+        persist('user', rawHTML, body?.innerText.trim() ?? '', time);
+      } else {
+        // Wait for streaming to finish (send button re-enables)
+        const sw = setInterval(() => {
+          if (sendBtn.disabled) return;
+          clearInterval(sw);
+          persist('bot', node._raw ?? rawHTML, body?.innerText.trim() ?? '', time);
+        }, 100);
       }
     }
-  }).observe(chatEl, { childList: true });
-
-  /* ─── Typing indicator ─────────────────────────────── */
-  setInterval(() => {
-    const bots = [...chatEl.querySelectorAll('.bot.message[data-visible="1"]')];
-    const last = bots[bots.length - 1];
-    if (!last) { typingEl.classList.remove('visible'); return; }
-    const body  = last.querySelector('.msg-text');
-    const empty = !body || body.innerHTML.trim() === '';
-    typingEl.classList.toggle('visible', empty);
-  }, 100);
-
-  /* ─── Validation — capture phase ───────────────────── */
-  // Runs before the obfuscated WS handler so it can block sends cleanly.
-  function validateSend(e) {
-    const val = inputEl.value.trim();
-    if (!val || isInitMsg(val)) return true; // let init through silently
-
-    if (countWords(val) > MAX_WORDS) {
-      e.preventDefault(); e.stopImmediatePropagation();
-      showToast('Message too long. Limit is 2,000 words.');
-      return false;
-    }
-    if (!rate.canSend()) {
-      e.preventDefault(); e.stopImmediatePropagation();
-      showToast('Limit reached: 100 messages per hour.');
-      return false;
-    }
-    rate.record();
-    return true;
   }
+}).observe(chatEl, { childList: true });
 
-  sendBtn.addEventListener('click', validateSend, true);
+/* ─── Typing indicator ─────────────────────────────── */
+setInterval(() => {
+  const bots = [...chatEl.querySelectorAll('.bot.message[data-visible="1"]')];
+  const last = bots[bots.length - 1];
+  if (!last) { typingEl.classList.remove('visible'); return; }
+  const body  = last.querySelector('.msg-text');
+  const empty = !body || body.innerHTML.trim() === '';
+  typingEl.classList.toggle('visible', empty);
+}, 100);
 
-  inputEl.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey && !sendBtn.disabled) validateSend(e);
-  }, true);
+/* ─── Validation — capture phase ───────────────────── */
+// Runs before the obfuscated WS handler so it can block sends cleanly.
+function validateSend(e) {
+  const val = inputEl.value.trim();
+  if (!val || isInitMsg(val)) return true; // let init through silently
 
-  /* ─── Input height reset after send ────────────────── */
-  sendBtn.addEventListener('click', () => {
-    setTimeout(() => { if (!inputEl.value.trim()) inputEl.style.height = 'auto'; }, 10);
-  });
+  if (countWords(val) > MAX_WORDS) {
+    e.preventDefault(); e.stopImmediatePropagation();
+    showToast('Message too long. Limit is 2,000 words.');
+    return false;
+  }
+  if (!rate.canSend()) {
+    e.preventDefault(); e.stopImmediatePropagation();
+    showToast('Limit reached: 100 messages per hour.');
+    return false;
+  }
+  rate.record();
+  return true;
+}
 
-  /* ─── Starter prompts ──────────────────────────────── */
-  document.querySelectorAll('.starter').forEach(btn =>
-    btn.addEventListener('click', () => {
-      inputEl.value = btn.dataset.prompt;
-      inputEl.focus();
-      resizeInput();
-    }));
+sendBtn.addEventListener('click', validateSend, true);
 
-  /* ─── Sidebar toggle ────────────────────────────────── */
-  document.getElementById('sidebarToggle')
-    .addEventListener('click', () => sidebarEl.classList.toggle('collapsed'));
+inputEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey && !sendBtn.disabled) validateSend(e);
+}, true);
 
-  /* ─── New chat button ───────────────────────────────── */
-  document.getElementById('newChatBtn').addEventListener('click', () => {
-    if (activeChat?.messages.length && !confirm('Start a new conversation?')) return;
-    startNew();
-  });
+/* ─── Input height reset after send ────────────────── */
+sendBtn.addEventListener('click', () => {
+  setTimeout(() => { if (!inputEl.value.trim()) inputEl.style.height = 'auto'; }, 10);
+});
+
+/* ─── Starter prompts ──────────────────────────────── */
+document.querySelectorAll('.starter').forEach(btn =>
+  btn.addEventListener('click', () => {
+    inputEl.value = btn.dataset.prompt;
+    inputEl.focus();
+    resizeInput();
+  }));
+
+/* ─── Sidebar toggle ────────────────────────────────── */
+document.getElementById('sidebarToggle')
+  .addEventListener('click', () => sidebarEl.classList.toggle('collapsed'));
+
+/* ─── New chat button ───────────────────────────────── */
+document.getElementById('newChatBtn').addEventListener('click', () => {
+  if (activeChat?.messages.length && !confirm('Start a new conversation?')) return;
+  startNew();
+});
 
 })();
 </script>
