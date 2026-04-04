@@ -105,7 +105,6 @@ const games = [
     {name:"Save My Pet", url:"./games/save-my-pet/", category:"strategy"},
     {name:"Slope", url:"./games/slope/", category:"platformer"},
     {name:"Slope Multiplayer", url:"./games/slope-multiplayer/", category:"platformer"},
-    {name:"Smash Karts", url:"./games/smash-karts/", category:"action"},
     {name:"Snake.io", url:"./games/snakeio/", category:"io"},
     {name:"Snow Rider 3D", url:"./games/snow-rider-3d/", category:"racing"},
     {name:"Snowball.io", url:"./games/snowballio/", category:"io"},
