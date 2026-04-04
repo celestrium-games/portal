@@ -17,12 +17,9 @@ Games are organized into a searchable, curated library. Links open in a lightwei
 
 - v6 — Add New Features
     - v6.2 — Add CelestriumBrowser (Comming Soon...)
-    - v6.1 - Add a Crap Ton of Games
     - v6.0 — Add CelestriumAI
 - v5 — Major UI Overhaul
-    - v5.4 - Lots More Utilities & Games
     - v5.3 - Add 404 Page
-    - v5.2 — Add Many Utilties
     - v5.1 — Search Algorithm & Card Display Mechanism Rework
     - v5.0 — Games & Utilities Display Overhaul
 - v4 — Major Architecture Refactor

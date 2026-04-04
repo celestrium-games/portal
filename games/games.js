@@ -57,6 +57,7 @@ const games = [
     {name:"Geometry Dash Meltdown (Scratch)", url:"./games/geometry-dash-meltdown/", category:"action"},
     {name:"Geometry Dash Subzero (Scratch)", url:"./games/geometry-dash-subzero/", category:"action"},
     {name:"Geometry Dash World (Scratch)", url:"./games/geometry-dash-world/", category:"action"},
+    {name:"Getting Over It (Scratch)", url:"./games/getting-over-it/", category:"platformer"},
     {name:"Gun Knight", url:"./games/gun-knight/", category:"action"},
     {name:"Gun Mayhem", url:"./games/gun-mayhem/", category:"action"},
     {name:"Hei$t", url:"./games/heist/", category:"adventure"},
