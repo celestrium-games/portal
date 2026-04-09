@@ -491,7 +491,7 @@
       <select id="model-select">
         <option value="0">GPT 4 Turbo</option>
         <option value="1">Gemini 3.1 Flash</option>
-        <option value="2">OpenRouter (Random AI Model)</option>
+        <option value="2">Mistral Small</option>
       </select>
     </div>
 
@@ -586,7 +586,7 @@
 const MODELS = [
   ['GPT-4 Turbo',      '',  ''],
   ['Gemini 3.1 Flash', 'https://eou8o9b4r9jb4sm.m.pipedream.net/v1beta/models/gemini-3.1-flash-lite-preview:generateContent', ''],
-  ['OpenRouter',  'https://openrouter.ai/api/v1/chat/completions', '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'],
+  ['Mistral Small',  'https://eoefiebofzhhj5u.m.pipedream.net', ''],
 ];
 
 let selectedModel = 0;
@@ -618,7 +618,15 @@ const INIT_PROMPT =
 /* ─── SVGs ─────────────────────────────────────────── */
 const GPT_LOGO = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 15c-2.8 0-5-2.2-5-5s2.2-5 5-5 5 2.2 5 5-2.2 5-5 5z"/></svg>`;
 const GEMINI_LOGO = `<svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg>`;
-const OPENROUTER_LOGO = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>`;
+const MISTRAL_LOGO = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M4 18V9C4 7.34315 5.34315 6 7 6H9L12 11L15 6H17C18.6569 6 20 7.34315 20 9V18" 
+        stroke="currentColor" 
+        stroke-width="2" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+  
+  <path d="M12 14V20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+</svg>`;
 
 const USER_ICON = `<svg viewBox="0 0 24 24" width="13" height="13">
   <path fill="#888" d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2
@@ -636,7 +644,7 @@ const TRASH_ICON = `<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 
 
 function getBotLogo(modelId) {
   if (modelId === 1) return GEMINI_LOGO;
-  if (modelId === 2) return OPENROUTER_LOGO;
+  if (modelId === 2) return MISTRAL_LOGO;
   return GPT_LOGO;
 }
 
@@ -1120,7 +1128,7 @@ async function sendExternal(userText) {
       responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '(no response)';
 
     } else if (selectedModel === 2) {
-      // ── OpenRouter ──
+      // ── Mistral (via Pipedream) ──
       const msgs = [
         { role: 'system', content: INIT_PROMPT },
         ...activeChat.messages
@@ -1131,20 +1139,11 @@ async function sendExternal(userText) {
 
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + apiKey,
-          'HTTP-Referer': window.location.href,
-          'X-Title': 'CelestriumAI'
-        },
-        body: JSON.stringify({
-          model: 'openrouter/free',
-          messages: msgs,
-          max_tokens: 2048
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: msgs }) // Pipedream handles the Model ID and Key
       });
+
       const data = await res.json();
-      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
       responseText = data.choices?.[0]?.message?.content || '(no response)';
     }
 
