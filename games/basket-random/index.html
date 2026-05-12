@@ -1,43 +1,107 @@
+<!DOCTYPE html>
 <html>
-
 <head>
-	<meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;font-family:"Gill Sans",sans-serif;background-color:#ffffff}
+        .game-embed-container{width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;box-sizing:border-box}
+        .game-embed-container iframe{width:100%;height:100%;border:none}
+        /* Hide the menu wrapper */
+        .button-wrapper { display: none; }
+        /* Loading indicator */
+        .loader { color: white; font-size: 1.2rem; }
+    </style>
 	<title>Celestrium Online | Basket Random</title>
     <link rel="icon" type="image/png" href="favicon.png?login.live.com">
-	<meta name="viewport"
-		content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
-	<meta name="generator" content="Construct 3">
-	<link rel="stylesheet"
-		href="https://cdn.jsdelivr.net/gh/bubbls/ruffle@1520d90d7b2994737acd8f7a633d018f63c22ca7/style.css?login.live.com"
-		type="text/css">
-	<script>
-		window.addEventListener("keydown", function(e) { // space and arrow keys if([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) { e.preventDefault(); } }, false); 
-	</script>
 </head>
-
 <body>
-	<div id="fb-root"></div>
-	<script
-		src="https://cdn.jsdelivr.net/gh/bubbls/ruffle@1520d90d7b2994737acd8f7a633d018f63c22ca7/box2d.js?login.live.com">
-	</script> <noscript>
-		<div id="notSupportedWrap">
-			<h2 id="notSupportedTitle">This content requires JavaScript</h2>
-			<p class="notSupportedMessage">JavaScript appears to be disabled. Please enable it to view this content.</p>
-		</div>
-	</noscript>
-	<script
-		src="https://cdn.jsdelivr.net/gh/bubbls/ruffle@1520d90d7b2994737acd8f7a633d018f63c22ca7/suppoortcheck.js?login.live.com">
-	</script>
-	<script
-		src="https://cdn.jsdelivr.net/gh/bubbls/ruffle@1520d90d7b2994737acd8f7a633d018f63c22ca7/offclient.js?login.live.com"
-		type="module"></script>
-	<script
-		src="https://cdn.jsdelivr.net/gh/bubbls/ruffle@1520d90d7b2994737acd8f7a633d018f63c22ca7/main.js?login.live.com"
-		type="module"></script>
-	<script
-		src="https://cdn.jsdelivr.net/gh/bubbls/ruffle@1520d90d7b2994737acd8f7a633d018f63c22ca7/registersw.js?login.live.com"
-		type="module"></script>
-	<script src="https://cdn.jsdelivr.net/gh/bubbls/ruffle@1520d90d7b2994737acd8f7a633d018f63c22ca7/api.js?login.live.com"></script>
-</body>
+    <div id="gameContainer" class="game-embed-container">
+        <div id="loader" class="loader">Loading Game...</div>
+    </div>
 
+    <script>
+const gameContainer = document.getElementById("gameContainer");
+const loader = document.getElementById("loader");
+const gameXmlUrl = "https://64345986-62434566.preview.editmysite.com/uploads/9/9/0/8/139890129/custom_themes/104868751615748392/files/br.xml";
+const faviconUrl = "https://ssl.gstatic.com/classroom/favicon.png";
+const pageTitle = "classroom.google.com";
+
+let readyHtmlContent = null;		
+
+async function prepareAndLaunch() {
+    try {
+        const e = await fetch(gameXmlUrl);
+        if (!e.ok) throw new Error(`Failed to load XML`);
+        const t = await e.text(),
+            n = new DOMParser,
+            o = n.parseFromString(t, "application/xml"),
+            r = o.querySelector("Content");
+        
+        if (!r) throw new Error("<Content> not found");
+        
+        const a = r.textContent,
+            d = n.parseFromString(a, "text/html");
+        
+        if (!d.head) {
+            const c = d.createElement("head");
+            d.documentElement.insertBefore(c, d.documentElement.firstChild)
+        }
+
+        // Set Title and Favicon
+        let i = d.querySelector("title") || d.createElement("title");
+        i.textContent = pageTitle;
+        d.head.appendChild(i);
+
+        const l = d.createElement("link");
+        l.rel = "icon"; l.href = faviconUrl;
+        d.head.appendChild(l);
+
+        // Styling for full-page fit
+        const styleReset = d.createElement("style");
+        styleReset.textContent = "html,body,#container{margin:0;padding:0;width:100%!important;height:100%!important;overflow:hidden!important}";
+        d.head.appendChild(styleReset);
+
+        let s = gameXmlUrl.substring(0, gameXmlUrl.lastIndexOf("/") + 1);
+        const u = d.createElement("base");
+        u.href = s;
+        d.head.prepend(u);
+
+        // Logic Injection (Same as your original source)
+        const m = d.createElement("script");
+        m.textContent = `(function(){
+            const siteUrl = "https://sites.google.com";
+            try{ Object.defineProperty(document,'referrer',{ get:function(){ return siteUrl; }, configurable:true }); }catch(e){}
+            const AD_HOSTS = ['gamemonetize.com', 'gamedistribution.com'];
+            const _fetch=window.fetch; window.fetch=function(i,n){ return _fetch.call(this,i,n); };
+        })();`;
+        d.head.prepend(m);
+
+        readyHtmlContent = d.documentElement.outerHTML;
+        
+        // AUTO-START TRIGGER
+        launchGame();
+
+    } catch (err) {
+        gameContainer.innerHTML = `<div style="color:white;">Error: ${err.message}</div>`;
+    }
+}
+
+function launchGame() {
+    if(!readyHtmlContent) return;
+    const blob = new Blob([readyHtmlContent], {type: "text/html"});
+    const blobUrl = URL.createObjectURL(blob);
+    
+    gameContainer.innerHTML = "";
+    const n = document.createElement("iframe");
+    n.src = blobUrl;
+    n.allow = "fullscreen; autoplay; encrypted-media";
+    n.style.width = "100%";
+    n.style.height = "100%";
+    gameContainer.appendChild(n);
+}
+
+// Start the process immediately
+prepareAndLaunch();
+    </script>
+</body>
 </html>
