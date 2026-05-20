@@ -7,6 +7,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.min.js"></script>
+  <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.worker.min.js';</script>
+
   <style>
     :root {
       --bg:          #ffffff;
@@ -63,10 +66,14 @@
       gap: 8px;
       border-bottom: 1px solid var(--border);
     }
-    .sidebar-logo { width: 22px; height: 22px; flex-shrink: 0; }
+    .sidebar-logo { width: 22px; height: 22px; flex-shrink: 0; color: var(--accent); }
     .sidebar-title {
-      font-size: 0.83rem; font-weight: 600;
-      color: var(--text); letter-spacing: -0.01em; white-space: nowrap;
+      font-size: 0.88rem; font-weight: 600;
+      color: var(--text); letter-spacing: -0.02em; white-space: nowrap;
+      display: flex; align-items: center;
+    }
+    .sidebar-title span {
+      color: var(--accent); font-weight: 700; margin-left: 2px;
     }
 
     .sidebar-new-btn {
@@ -106,12 +113,12 @@
       width: 22px; height: 22px; flex-shrink: 0;
       display: flex; align-items: center; justify-content: center;
       border-radius: 5px; background: var(--bg2); border: 1px solid var(--border);
+      color: var(--text-faint);
     }
     .chat-item.active .chat-item-icon {
       background: linear-gradient(135deg, #4a90e2, #7bb8ff); border-color: transparent;
+      color: #ffffff;
     }
-    .chat-item-icon svg { width: 13px; height: 13px; fill: var(--text-faint); stroke: var(--text-faint); stroke-width: 0.5px;}
-    .chat-item.active .chat-item-icon svg { fill: #fff; stroke: #fff;}
 
     .chat-item-info { flex: 1; min-width: 0; }
     .chat-item-title {
@@ -121,16 +128,52 @@
     .chat-item.active .chat-item-title { color: var(--accent-mid); font-weight: 600; }
     .chat-item-meta { font-size: 0.67rem; color: var(--text-faint); margin-top: 1px; }
 
-    .chat-item-delete {
-      opacity: 0; width: 20px; height: 20px; border-radius: 4px;
+    .chat-item-rename-input {
+      width: 100%;
+      font-family: inherit;
+      font-size: 0.79rem;
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      padding: 1px 4px;
+      outline: none;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    /* ── Chat Context Menu ───────────────────────────── */
+    .chat-item-menu-wrap {
+      position: relative; opacity: 0; transition: opacity 0.15s; flex-shrink: 0;
+    }
+    .chat-item:hover .chat-item-menu-wrap { opacity: 1; }
+    
+    .chat-item-menu-btn {
+      width: 24px; height: 24px; border-radius: 6px;
       border: none; background: none; color: var(--text-faint);
       cursor: pointer; display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; padding: 0;
-      transition: background 0.1s, color 0.1s, opacity 0.1s;
+      transition: background 0.1s, color 0.1s;
     }
-    .chat-item:hover .chat-item-delete { opacity: 1; }
-    .chat-item-delete:hover { background: #fee2e2; color: #dc2626; }
-    .chat-item-delete svg { width: 11px; height: 11px; fill: currentColor; }
+    .chat-item-menu-btn:hover { background: var(--border-soft); color: var(--text); }
+    .chat-item-menu-btn i { font-size: 13px; }
+
+    .chat-context-menu {
+      position: absolute; right: 0; top: 100%; margin-top: 4px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      width: 140px; display: none; flex-direction: column; z-index: 100;
+      padding: 5px;
+    }
+    .chat-context-menu.show { display: flex; }
+    
+    .chat-context-item {
+      display: flex; align-items: center; gap: 8px;
+      width: 100%; padding: 8px 10px; border: none; background: none;
+      font-family: inherit; font-size: 0.78rem; font-weight: 500;
+      color: var(--text); cursor: pointer; border-radius: 5px; text-align: left;
+      transition: background 0.1s, color 0.1s;
+    }
+    .chat-context-item:hover { background: var(--bg2); color: var(--accent); }
+    .chat-context-item.danger:hover { background: #fee2e2; color: #dc2626; }
+    .chat-context-item i { width: 14px; text-align: center; }
 
     /* ── Main ────────────────────────────────────────── */
     #main {
@@ -158,8 +201,14 @@
     .tb-toggle svg { width: 14px; height: 14px; fill: currentColor; }
 
     .tb-brand { display: flex; align-items: center; gap: 8px; }
-    .tb-logomark { width: 26px; height: 26px; flex-shrink: 0; }
-    .tb-name { font-size: 0.86rem; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
+    .tb-logomark { width: 26px; height: 26px; flex-shrink: 0; color: var(--accent); }
+    .tb-name { 
+      font-size: 1.05rem; font-weight: 600; color: var(--text); 
+      letter-spacing: -0.02em; display: flex; align-items: center;
+    }
+    .tb-name span {
+      color: var(--accent); font-weight: 700; margin-left: 2px;
+    }
     .tb-pill {
       font-size: 0.67rem; font-weight: 600; letter-spacing: 0.05em;
       text-transform: uppercase; color: var(--accent);
@@ -217,7 +266,7 @@
       text-align: center; padding: 64px 0 40px; gap: 16px;
       animation: up .3s ease both;
     }
-    .welcome-mark { width: 52px; height: 52px; margin-bottom: 4px; }
+    .welcome-mark { width: 52px; height: 52px; margin-bottom: 4px; color: var(--accent); }
     #welcome h2 { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.03em; }
     #welcome p  { font-size: 0.88rem; color: var(--text-sub); max-width: 340px; line-height: 1.6; margin-top: -4px; }
 
@@ -268,8 +317,9 @@
     .msg-avatar {
       width: 26px; height: 26px; border-radius: 6px;
       display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      color: var(--accent-mid);
     }
-    .bot  .msg-avatar { background: linear-gradient(135deg, #4a90e2, #7bb8ff); }
+    .bot  .msg-avatar { background: linear-gradient(135deg, #4a90e2, #7bb8ff); color: #ffffff; }
     .user .msg-avatar { background: #e4e4e4; border: 1px solid var(--border); }
     .msg-name { font-size: 0.8rem; font-weight: 600; }
     .bot  .msg-name { color: var(--accent-mid); }
@@ -495,7 +545,7 @@
       background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
     }
     .preview-container {
-      position: relative; z-index: 2; max-width: 90%; max-height: 90%;
+      position: relative; z-index: 2; max-width: 90%; max-height: 90%; width: 800px;
       background: var(--bg); border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
       display: flex; flex-direction: column; overflow: hidden; min-width: 300px;
     }
@@ -516,6 +566,9 @@
       margin: 0; font-family: 'Geist Mono', monospace; font-size: 13px;
       white-space: pre-wrap; word-break: break-word; color: var(--text);
       line-height: 1.5; max-width: 800px;
+    }
+    #preview-content-box iframe {
+      width: 100%; height: 80vh; border: none; border-radius: 4px;
     }
 
     /* ── Sidebar ads ─────────────────────────────────── */
@@ -553,17 +606,10 @@
 
 <div id="sidebar">
   <div class="sidebar-head">
-    <svg class="sidebar-logo" viewBox="0 0 22 22" fill="none">
-      <defs>
-        <linearGradient id="slg" x1="0" y1="0" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stop-color="#4a90e2"/>
-          <stop offset="100%" stop-color="#7bb8ff"/>
-        </linearGradient>
-      </defs>
-      <path d="M16 6.5A7 7 0 1 0 16 15.5" stroke="url(#slg)" stroke-width="2" stroke-linecap="round" fill="none"/>
-      <circle cx="16" cy="15.5" r="1.6" fill="url(#slg)"/>
+    <svg class="sidebar-logo" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
     </svg>
-    <span class="sidebar-title">CelestriumAI</span>
+    <span class="sidebar-title">Celestrium<span>AI</span></span>
   </div>
   <button class="sidebar-new-btn" id="newChatBtn">
     <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
@@ -579,17 +625,12 @@
       <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
     </button>
     <div class="tb-brand">
-      <svg class="tb-logomark" viewBox="0 0 28 28" fill="none">
-        <defs>
-          <linearGradient id="lg" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stop-color="#4a90e2"/>
-            <stop offset="100%" stop-color="#7bb8ff"/>
-          </linearGradient>
-        </defs>
-        <path d="M20.5 8A9 9 0 1 0 20.5 20" stroke="url(#lg)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-        <circle cx="20.5" cy="20" r="2" fill="url(#lg)"/>
-      </svg>
-      <span class="tb-name">CelestriumAI</span>
+      <div class="tb-logomark">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <span class="tb-name">Celestrium<span>AI</span></span>
     </div>
     <span class="tb-pill">Beta</span>
 
@@ -597,7 +638,7 @@
       <label for="model-select">Model</label>
       <select id="model-select">
         <option value="0" selected>Mistral Large</option>
-        <option value="1">Gemini 3.1 Flash</option>
+        <option value="1">Gemini 3.5 Flash</option>
       </select>
     </div>
 
@@ -608,18 +649,13 @@
 
   <div id="chat">
     <div id="welcome">
-      <svg class="welcome-mark" viewBox="0 0 52 52" fill="none">
-        <defs>
-          <linearGradient id="wlg" x1="0" y1="0" x2="52" y2="52" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stop-color="#4a90e2"/>
-            <stop offset="100%" stop-color="#7bb8ff"/>
-          </linearGradient>
-        </defs>
-        <path d="M38 11A17 17 0 1 0 38 41" stroke="url(#wlg)" stroke-width="4" stroke-linecap="round" fill="none"/>
-        <circle cx="38" cy="41" r="3.5" fill="url(#wlg)"/>
-      </svg>
+      <div class="welcome-mark">
+        <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+      </div>
       <h2>What can I help with?</h2>
-      <p>Ask anything — I'm a Collection of AI assistants on CelestriumAI, here to help.</p>
+      <p>Ask anything — I'm a Collection of AI assistants on Celestrium, here to help.</p>
       <div class="starter-grid">
         <button class="starter" data-prompt="Explain this concept to me clearly like I'm in high school: ">
           <strong>Explain a concept</strong>
@@ -703,7 +739,7 @@
 // [displayName, apiEndpoint, apiKey]
 const MODELS = [
   ['Mistral Large',  'https://api.mistral.ai/v1/chat/completions?login.live.com', 'SwaoRwo7I19YkbmP6Pw7vJ2IWDat8yxf'],
-  ['Gemini 3.1 Flash', 'https://eou8o9b4r9jb4sm.m.pipedream.net/v1beta/models/gemini-3.1-flash-lite-preview:generateContent', '']
+  ['Gemini 3.5 Flash', 'https://celestrium-backend.netlify.app/.netlify/functions/gemini?login.live.com', '']
 ];
 
 let selectedModel = 0; // Default to Mistral Large
@@ -733,15 +769,8 @@ const INIT_PROMPT =
   'Acknowledge these rules with only the word: ready';
 
 /* ─── SVGs ─────────────────────────────────────────── */
-const GEMINI_LOGO = `<svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg>`;
-const MISTRAL_LOGO = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M4 18V9C4 7.34315 5.34315 6 7 6H9L12 11L15 6H17C18.6569 6 20 7.34315 20 9V18" 
-        stroke="currentColor" 
-        stroke-width="2" 
-        stroke-linecap="round" 
-        stroke-linejoin="round"/>
-  <path d="M12 14V20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-</svg>`;
+const GEMINI_LOGO = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg>`;
+const MISTRAL_LOGO = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 20V5.5C4 4.67 4.67 4 5.5 4C6.03 4 6.52 4.28 6.78 4.74L12 13.5L17.22 4.74C17.48 4.28 17.97 4 18.5 4C19.33 4 20 4.67 20 5.5V20" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" /><path d="M12 17.5L13.2 19L12 20.5L10.8 19Z" fill="currentColor" /></svg>`;
 
 const USER_ICON = `<svg viewBox="0 0 24 24" width="13" height="13">
   <path fill="#888" d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2
@@ -753,9 +782,6 @@ const COPY_ICON = `<svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h
 const REGEN_ICON = `<svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.96 7.96 0 0 0 12 4c-4.42
   0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31
   0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>`;
-
-const TRASH_ICON = `<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9
-  2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`;
 
 function getBotLogo(modelId) {
   if (modelId === 1) return GEMINI_LOGO;
@@ -834,29 +860,30 @@ const deletedIds  = new Set();
 let pendingFiles  = [];
 
 /* ─── Memory Map for Previews ──────────────────────── */
-// This holds base64 file data actively so it doesn't crash localStorage limits
 window.sessionFiles = {};
 
 window.openDraftPreview = function(idx) {
     const pf = pendingFiles[idx];
-    if (pf) renderModal(pf.content, pf.isImage);
+    if (pf) renderModal(pf);
 };
 
 window.openSentPreview = function(fileId) {
     const pf = window.sessionFiles[fileId];
     if (pf) {
-        renderModal(pf.content, pf.isImage);
+        renderModal(pf);
     } else {
         showToast("Preview memory cleared after page reload. Re-upload to view full size.");
     }
 };
 
-function renderModal(content, isImage) {
+function renderModal(pf) {
     const box = document.getElementById('preview-content-box');
-    if(isImage) {
-        box.innerHTML = `<img src="${content}" alt="Full Size Preview">`;
+    if(pf.isImage) {
+        box.innerHTML = `<img src="${pf.previewUrl || pf.content}" alt="Full Size Preview">`;
+    } else if (pf.isPdf) {
+        box.innerHTML = `<iframe src="${pf.previewUrl}#view=FitH" title="PDF Preview"></iframe>`;
     } else {
-        box.innerHTML = `<pre>${escHtml(content)}</pre>`;
+        box.innerHTML = `<pre>${escHtml(pf.content)}</pre>`;
     }
     document.getElementById('preview-modal').classList.add('show');
 }
@@ -865,7 +892,6 @@ window.closePreview = function() {
     document.getElementById('preview-modal').classList.remove('show');
     document.getElementById('preview-content-box').innerHTML = '';
 };
-
 
 /* ─── Storage ──────────────────────────────────────── */
 const store = {
@@ -993,7 +1019,8 @@ uploadBtn.addEventListener('click', () => {
   fileInput.click();
 });
 
-function readFileAsync(file, isImage) {
+/* ─── PDF-aware File Reader ────────────────── */
+function readFileAsync(file, isImage, isPdf) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
@@ -1001,10 +1028,26 @@ function readFileAsync(file, isImage) {
     
     if (isImage) {
       reader.readAsDataURL(file);
+    } else if (isPdf) {
+      reader.readAsArrayBuffer(file);
     } else {
       reader.readAsText(file);
     }
   });
+}
+
+async function extractTextFromPdf(arrayBuffer) {
+  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+  const pdf = await loadingTask.promise;
+  let fullText = '';
+  
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items.map(item => item.str).join(' ');
+    fullText += `--- Page ${i} ---\n${pageText}\n\n`;
+  }
+  return fullText;
 }
 
 fileInput.addEventListener('change', async (e) => {
@@ -1018,11 +1061,23 @@ fileInput.addEventListener('change', async (e) => {
     try {
       const ext = f.name.split('.').pop().toLowerCase();
       const isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext);
+      const isPdf = ext === 'pdf';
       
-      const content = await readFileAsync(f, isImage);
-      pendingFiles.push({ file: f, content: content, isImage });
+      let content = await readFileAsync(f, isImage, isPdf);
+      let previewUrl = null;
+      
+      if (isPdf) {
+        const text = await extractTextFromPdf(content);
+        previewUrl = URL.createObjectURL(f);
+        content = text;
+      } else if (isImage) {
+        previewUrl = content;
+      }
+      
+      pendingFiles.push({ file: f, content: content, previewUrl: previewUrl, isImage, isPdf });
     } catch (err) {
-      showToast(`Failed to read ${f.name}`);
+      console.error(err);
+      showToast(`Failed to read or parse ${f.name}`);
     }
   }
   renderAttachments();
@@ -1045,7 +1100,7 @@ function renderAttachments() {
     
     let previewElement = '';
     if (pf.isImage) {
-      previewElement = `<img src="${pf.content}" class="attach-thumb" alt="preview">`;
+      previewElement = `<img src="${pf.previewUrl || pf.content}" class="attach-thumb" alt="preview">`;
     } else {
       previewElement = `<i class="${iconClass} attach-icon"></i>`;
     }
@@ -1124,6 +1179,13 @@ function buildCard(role, html, time, withActions) {
   return card;
 }
 
+/* ─── Global click to close menus ──────────────────── */
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.chat-item-menu-wrap')) {
+    document.querySelectorAll('.chat-context-menu.show').forEach(m => m.classList.remove('show'));
+  }
+});
+
 /* ─── Sidebar list ─────────────────────────────────── */
 function renderList() {
   const chats    = store.chats();
@@ -1133,21 +1195,82 @@ function renderList() {
   chats.forEach(chat => {
     const el = document.createElement('div');
     const mId = chat.modelId !== undefined ? chat.modelId : 0;
-    el.className = `chat-item ${activeChat && activeChat.id === chat.id ? 'active' : ''}`;
+    const isActive = activeChat && activeChat.id === chat.id;
+    el.className = `chat-item ${isActive ? 'active' : ''}`;
+    
     el.innerHTML = `
       <div class="chat-item-icon">${getBotLogo(mId)}</div>
       <div class="chat-item-info">
-        <div class="chat-item-title">${escHtml(chat.title)}</div>
+        <div class="chat-item-title" title="Double click to rename">${escHtml(chat.title)}</div>
         <div class="chat-item-meta">${relTime(chat.updatedAt)} • ${modelName(mId)}</div>
       </div>
-      <button class="chat-item-delete" title="Delete Chat">${TRASH_ICON}</button>
+      <div class="chat-item-menu-wrap">
+        <button class="chat-item-menu-btn" title="Options"><i class="fa-solid fa-bars"></i></button>
+        <div class="chat-context-menu">
+          <button class="chat-context-item rename-btn"><i class="fa-solid fa-pen"></i> Rename</button>
+          <button class="chat-context-item danger delete-btn"><i class="fa-solid fa-trash"></i> Delete</button>
+        </div>
+      </div>
     `;
+    
     el.onclick = () => switchTo(chat.id);
 
-    const delBtn = el.querySelector('.chat-item-delete');
-    if (!canDelete) { delBtn.style.opacity = '0.3'; delBtn.style.cursor = 'not-allowed'; }
-    delBtn.onclick = (e) => {
+    const menuBtn = el.querySelector('.chat-item-menu-btn');
+    const contextMenu = el.querySelector('.chat-context-menu');
+    const renameBtn = el.querySelector('.rename-btn');
+    const deleteBtn = el.querySelector('.delete-btn');
+
+    menuBtn.onclick = (e) => {
       e.stopPropagation();
+      document.querySelectorAll('.chat-context-menu.show').forEach(m => {
+        if (m !== contextMenu) m.classList.remove('show');
+      });
+      contextMenu.classList.toggle('show');
+    };
+
+    const triggerRename = (e) => {
+      e.stopPropagation();
+      contextMenu.classList.remove('show');
+      const titleEl = el.querySelector('.chat-item-title');
+      const currentTitle = chat.title;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'chat-item-rename-input';
+      input.value = currentTitle;
+      
+      titleEl.replaceWith(input);
+      input.focus();
+      input.select();
+
+      const saveRename = () => {
+        const newTitle = input.value.trim();
+        if (newTitle && newTitle !== currentTitle) {
+          chat.title = newTitle;
+          store.saveChat(chat);
+          if (activeChat && activeChat.id === chat.id) {
+            activeChat.title = newTitle;
+          }
+        }
+        renderList();
+      };
+
+      input.onkeydown = (evt) => {
+        if (evt.key === 'Enter') saveRename();
+        if (evt.key === 'Escape') renderList();
+      };
+      input.onblur = saveRename;
+    };
+
+    el.querySelector('.chat-item-title').ondblclick = triggerRename;
+    renameBtn.onclick = triggerRename;
+
+    if (!canDelete) { 
+      deleteBtn.style.opacity = '0.4'; 
+      deleteBtn.style.cursor = 'not-allowed'; 
+    }
+    deleteBtn.onclick = (e) => {
+      e.stopPropagation();
+      contextMenu.classList.remove('show');
       if (store.deleteChat(chat.id)) {
         if (activeChat && activeChat.id === chat.id) {
           switchTo(store.chats()[0].id);
@@ -1157,6 +1280,7 @@ function renderList() {
         showToast("Conversation deleted.");
       }
     };
+    
     chatListEl.appendChild(el);
   });
 }
@@ -1329,8 +1453,7 @@ async function sendExternal(userText) {
           const iconClass = getFileIconClass(pf.file.name);
           const fileId = 'file_' + Math.random().toString(36).substr(2, 9);
           
-          // Allocate to session memory map for instant in-chat previews
-          window.sessionFiles[fileId] = { content: pf.content, isImage: pf.isImage };
+          window.sessionFiles[fileId] = { content: pf.content, previewUrl: pf.previewUrl, isImage: pf.isImage, isPdf: pf.isPdf };
 
           displayHtml += `<div class="msg-attach-pill" onclick="openSentPreview('${fileId}')" title="Click to view full size"><i class="${iconClass}"></i> ${escHtml(pf.file.name)}</div>`;
           
@@ -1346,7 +1469,6 @@ async function sendExternal(userText) {
       displayHtml += `</div>`;
   }
 
-  // Construct UI user dialog card
   const userNode = document.createElement('div');
   userNode.className = 'message user';
   userNode.dataset.enhanced = '1';
@@ -1354,7 +1476,6 @@ async function sendExternal(userText) {
   userNode.appendChild(buildCard('user', displayHtml, time, false));
   chatEl.insertBefore(userNode, typingEl);
   
-  // Persist structured logs
   persist('user', displayHtml, textToSend, time);
 
   pendingFiles = [];
@@ -1371,9 +1492,8 @@ async function sendExternal(userText) {
   try {
     let responseText = '';
 
-    // Initialize prompt context covertly
     if (activeChat.messages.length === 1 && !activeChat.initDone) {
-      if (selectedModel === 1) { // Gemini
+      if (selectedModel === 1) {
         await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1423,30 +1543,45 @@ async function sendExternal(userText) {
       if (data.error) throw new Error(data.error.message);
       responseText = data.choices?.[0]?.message?.content || '(no response)';
 
-    } else if (selectedModel === 1) { // Gemini via Pipedream
-      const contents = [
-        { role: 'user', parts: [{ text: INIT_PROMPT }] },
-        { role: 'model', parts: [{ text: 'ready' }] }
-      ];
-      activeChat.messages.filter(m => !isInitMsg(m.text)).forEach(m => {
-        contents.push({
-          role: m.role === 'user' ? 'user' : 'model',
-          parts: [{ text: m.text }]
-        });
-      });
+    } else if (selectedModel === 1) { // Gemini via Netlify Serverless Proxy
+        const contents = [
+          { role: 'user', parts: [{ text: INIT_PROMPT }] },
+          { role: 'model', parts: [{ text: 'ready' }] }
+        ];
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents,
-          generationConfig: { temperature: 0.8, maxOutputTokens: 2048 }
-        })
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error.message);
-      responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '(no response)';
-    }
+        activeChat.messages.filter(m => !isInitMsg(m.text)).forEach(m => {
+          contents.push({
+            role: m.role === 'user' ? 'user' : 'model',
+            parts: [{ text: typeof m.text === 'string' ? m.text : String(m.text) }]
+          });
+        });
+
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: contents,
+            generationConfig: { 
+              temperature: 0.8, 
+              maxOutputTokens: 2048 
+            }
+          })
+        });
+
+        if (!res.ok) {
+          const rawTextError = await res.text();
+          throw new Error(`Netlify Proxy Error (${res.status}): ${rawTextError || res.statusText}`);
+        }
+
+        const data = await res.json();
+        
+        if (data.error) {
+          throw new Error(`Google API Error: ${data.error.message}`);
+        }
+        
+        const firstValidPart = data.candidates?.[0]?.content?.parts?.find(p => p.text);
+        responseText = firstValidPart ? firstValidPart.text : '(no response)';
+      }
 
     typingEl.classList.remove('visible');
     const botTime = nowTime();
@@ -1477,7 +1612,6 @@ async function sendExternal(userText) {
   inputEl.focus();
 }
 
-/* ─── Validation ── */
 function validateSend(e) {
   const val = inputEl.value.trim();
   if (!val && pendingFiles.length === 0) return false;
@@ -1495,7 +1629,6 @@ function validateSend(e) {
   return true;
 }
 
-/* ─── Send handler ────────────────────────────────────── */
 sendBtn.addEventListener('click', (e) => {
   if (!validateSend(e)) return;
 
@@ -1515,12 +1648,10 @@ inputEl.addEventListener('keydown', (e) => {
   sendBtn.click();
 }, true);
 
-/* ─── Input height reset after send ────────────────── */
 sendBtn.addEventListener('click', () => {
   setTimeout(() => { if (!inputEl.value.trim()) inputEl.style.height = 'auto'; }, 10);
 });
 
-/* ─── Starter prompts ──────────────────────────────── */
 document.querySelectorAll('.starter').forEach(btn =>
   btn.addEventListener('click', () => {
     inputEl.value = btn.dataset.prompt;
@@ -1528,11 +1659,9 @@ document.querySelectorAll('.starter').forEach(btn =>
     resizeInput();
   }));
 
-/* ─── Sidebar toggle ────────────────────────────────── */
 document.getElementById('sidebarToggle')
   .addEventListener('click', () => sidebarEl.classList.toggle('collapsed'));
 
-/* ─── New chat button ───────────────────────────────── */
 document.getElementById('newChatBtn').addEventListener('click', () => {
   if (activeChat?.messages.length && !confirm('Start a new conversation?')) return;
   startNew();
