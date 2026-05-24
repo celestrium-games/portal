@@ -44,6 +44,7 @@ const games = [
     {name:"Drive Mad (Fanmade)", url:"./games/drive-mad/", category:"racing"},
     {name:"Duck Life 5", url:"./games/duck-life-5/", category:"adventure"},
     {name:"Duck Life Space", url:"./games/duck-life-space/", category:"adventure"},
+    {name:"Dune Dash", url:"./games/dune-dash/", category:"other"},
     {name:"Eaglercraft", url:"./games/eaglercraft/", category:"other"},
     {name:"Escape Road", url:"./games/escape-road/", category:"action"},
     {name:"Escape Road 2", url:"./games/escape-road-2/", category:"action"},

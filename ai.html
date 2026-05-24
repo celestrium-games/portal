@@ -739,7 +739,7 @@
 // [displayName, apiEndpoint, apiKey]
 const MODELS = [
   ['Mistral Large',  'https://api.mistral.ai/v1/chat/completions?login.live.com', 'SwaoRwo7I19YkbmP6Pw7vJ2IWDat8yxf'],
-  ['Gemini 3.5 Flash', 'https://celestrium-backend.netlify.app/.netlify/functions/gemini?login.live.com', '']
+  ['Gemini 3.5 Flash', 'https://ai.celestrium-online.workers.dev?login.live.com', '']
 ];
 
 let selectedModel = 0; // Default to Mistral Large
@@ -1543,46 +1543,47 @@ async function sendExternal(userText) {
       if (data.error) throw new Error(data.error.message);
       responseText = data.choices?.[0]?.message?.content || '(no response)';
 
-    } else if (selectedModel === 1) { // Gemini via Netlify Serverless Proxy
-        const contents = [
-          { role: 'user', parts: [{ text: INIT_PROMPT }] },
-          { role: 'model', parts: [{ text: 'ready' }] }
-        ];
+    } else if (selectedModel === 1) { // Gemini via Cloudflare Worker Proxy
+      // Structure the payload exactly how Google's generateContent API expects it
+      const contents = [
+        { role: 'user', parts: [{ text: INIT_PROMPT }] },
+        { role: 'model', parts: [{ text: 'ready' }] }
+      ];
 
-        activeChat.messages.filter(m => !isInitMsg(m.text)).forEach(m => {
-          contents.push({
-            role: m.role === 'user' ? 'user' : 'model',
-            parts: [{ text: typeof m.text === 'string' ? m.text : String(m.text) }]
-          });
+      // Format the local chat history into Google's standard JSON format
+      activeChat.messages.filter(m => !isInitMsg(m.text)).forEach(m => {
+        contents.push({
+          role: m.role === 'user' ? 'user' : 'model',
+          parts: [{ text: typeof m.text === 'string' ? m.text : String(m.text) }]
         });
+      });
 
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: contents,
-            generationConfig: { 
-              temperature: 0.8, 
-              maxOutputTokens: 2048 
-            }
-          })
-        });
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: contents,
+          generationConfig: { 
+            temperature: 0.8, 
+            maxOutputTokens: 2048 
+          }
+        })
+      });
 
-        if (!res.ok) {
-          const rawTextError = await res.text();
-          throw new Error(`Netlify Proxy Error (${res.status}): ${rawTextError || res.statusText}`);
-        }
-
-        const data = await res.json();
-        
-        if (data.error) {
-          throw new Error(`Google API Error: ${data.error.message}`);
-        }
-        
-        const firstValidPart = data.candidates?.[0]?.content?.parts?.find(p => p.text);
-        responseText = firstValidPart ? firstValidPart.text : '(no response)';
+      if (!res.ok) {
+        const rawTextError = await res.text();
+        throw new Error(`Cloudflare Proxy Error (${res.status}): ${rawTextError || res.statusText}`);
       }
 
+      const data = await res.json();
+      
+      if (data.error) {
+        throw new Error(`Google API Error: ${data.error.message}`);
+      }
+      
+      const firstValidPart = data.candidates?.[0]?.content?.parts?.find(p => p.text);
+      responseText = firstValidPart ? firstValidPart.text : '(no response)';
+    }
     typingEl.classList.remove('visible');
     const botTime = nowTime();
     const botNode = document.createElement('div');
