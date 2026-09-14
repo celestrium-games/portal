@@ -632,12 +632,12 @@
       </div>
       <span class="tb-name">Celestrium<span>AI</span></span>
     </div>
-    <span class="tb-pill">Beta</span>
+    <span class="tb-pill">WIP</span>
 
     <div id="model-selector">
       <label for="model-select">Model</label>
       <select id="model-select">
-        <option value="0" selected>Mistral Large</option>
+        <option value="0" selected>Ministral</option>
         <option value="1">Gemini 3.5 Flash</option>
       </select>
     </div>
@@ -738,11 +738,11 @@
 /* ─── Model config ─────────────────────────────────── */
 // [displayName, apiEndpoint, apiKey]
 const MODELS = [
-  ['Mistral Large',  'https://api.mistral.ai/v1/chat/completions?login.live.com', 'SwaoRwo7I19YkbmP6Pw7vJ2IWDat8yxf'],
+  ['Ministral',  'https://api.mistral.ai/v1/chat/completions?login.live.com', 'SwaoRwo7I19YkbmP6Pw7vJ2IWDat8yxf'],
   ['Gemini 3.5 Flash', 'https://ai.celestrium-online.workers.dev?login.live.com', '']
 ];
 
-let selectedModel = 0; // Default to Mistral Large
+let selectedModel = 0;
 
 /* ─── Constants ────────────────────────────────────── */
 const CHATS_KEY   = 'celestrium-chats';
@@ -846,7 +846,7 @@ function updateModelUI() {
       uploadBtn.disabled = true;
       uploadBtn.style.opacity = "0.4";
       uploadBtn.style.cursor = "not-allowed";
-      uploadBtn.title = "Uploads are only available for Mistral Large";
+      uploadBtn.title = "Uploads are only available for Ministral";
       pendingFiles = []; // Flush allocations if switched out
       renderAttachments();
     }
@@ -1013,7 +1013,7 @@ setInterval(() => {
 /* ─── Upload Handler ───────────────────────────────── */
 uploadBtn.addEventListener('click', () => {
   if (uploadBtn.disabled || selectedModel !== 0) {
-    showToast('Uploads are only allowed for Mistral Large.');
+    showToast('Uploads are only allowed for Ministral.');
     return;
   }
   fileInput.click();
@@ -1052,7 +1052,7 @@ async function extractTextFromPdf(arrayBuffer) {
 
 fileInput.addEventListener('change', async (e) => {
   if (selectedModel !== 0) {
-    showToast('Uploads are only allowed for Mistral Large.');
+    showToast('Uploads are only allowed for Ministral.');
     fileInput.value = '';
     return;
   }
@@ -1534,7 +1534,7 @@ async function sendExternal(userText) {
             'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({ 
-            model: 'mistral-large-latest',
+            model: 'ministral-8b-latest',
             messages: msgs 
         })
       });
